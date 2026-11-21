@@ -9,6 +9,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const busy = ref(false)
 const error = ref('')
+const pendingInvite = ref(Boolean(window.localStorage.getItem('family-bible:pendingInvite')))
 
 onMounted(async () => {
   const savedInvite = window.localStorage.getItem('family-bible:pendingInvite')
@@ -78,7 +79,19 @@ async function signOut() {
       </div>
 
       <!-- No family — either create one (first admin) or explain they need an invite -->
-      <div v-else class="card p-8 space-y-5">
+  <div v-else-if="pendingInvite" class="card p-8 text-center space-y-4">
+    <div class="text-5xl">ðŸ™</div>
+    <h1 class="font-serif text-2xl font-bold text-ink">Joining your invited family</h1>
+    <p class="text-sm text-ink/60 leading-relaxed">
+      Your invitation is being connected. Sign in with the email address that received the invitation.
+    </p>
+    <p v-if="error" class="text-sm text-rose" role="alert">{{ error }}</p>
+    <button @click="signOut" class="text-xs text-ink/40 hover:text-rose transition-colors mt-4">
+      Sign out and use another account
+    </button>
+  </div>
+
+  <div v-else class="card p-8 space-y-5">
         <div class="text-center space-y-2">
           <div class="text-5xl">👨‍👩‍👧</div>
           <h1 class="font-serif text-2xl font-bold text-ink">No family group yet</h1>

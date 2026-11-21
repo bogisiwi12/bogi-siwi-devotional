@@ -143,9 +143,9 @@ service cloud.firestore {
       allow delete: if isOwner(familyId);
 
       match /members/{uid} {
-        // List query: allow owner (by UID) or the member reading their own doc.
-        // Approved-member list queries use isOwner to avoid double get() in queries.
-        allow list: if isOwner(familyId) || request.auth.uid == uid;
+        // Approved family members of every role can view the shared roster.
+        // Pending invitees may read only their own member document, if present.
+        allow list: if canRead(familyId);
         allow get:  if isOwner(familyId) || approvedMember(familyId) || request.auth.uid == uid;
         allow create: if isOwner(familyId)
           && validMember(request.resource.data, uid)
