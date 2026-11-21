@@ -1,0 +1,423 @@
+@import "tailwindcss";
+
+@theme {
+  --color-parchment: #faf6f0;
+  --color-ink: #2c2416;
+  --color-sage: #8a9a7b;
+  --color-sage-dark: #6b7d5e;
+  --color-gold: #c9a961;
+  --color-rose: #d4a5a5;
+  --color-stone: #e8e2d9;
+  --font-serif: "Cormorant Garamond", "Georgia", "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --shadow-soft: 0 1px 2px rgb(44 36 22 / 0.04), 0 10px 30px -16px rgb(44 36 22 / 0.16);
+  --shadow-lift: 0 2px 4px rgb(44 36 22 / 0.04), 0 22px 48px -20px rgb(44 36 22 / 0.28);
+  --animate-float: float 7s ease-in-out infinite;
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-parchment);
+    background-image:
+      radial-gradient(circle at 12% -10%, rgb(201 169 97 / 0.1), transparent 42%),
+      radial-gradient(circle at 88% 4%, rgb(138 154 123 / 0.12), transparent 40%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background-color: rgb(201 169 97 / 0.32);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(138 154 123 / 0.6);
+    outline-offset: 2px;
+  }
+
+  /* Elegant scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d9d0c1 transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #d9d0c1;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-gold);
+  }
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    translate: -14px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(138 154 123 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgb(138 154 123 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(138 154 123 / 0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes progress-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------- Reveal utilities ---------- */
+.reveal {
+  opacity: 0;
+  animation: fade-up 0.65s var(--ease-out-expo) both;
+}
+
+.reveal-scale {
+  opacity: 0;
+  animation: scale-in 0.55s var(--ease-spring) both;
+}
+
+.reveal-left {
+  opacity: 0;
+  animation: slide-in-left 0.5s var(--ease-out-expo) both;
+}
+
+.reveal-fade {
+  opacity: 0;
+  animation: fade-in 0.6s ease both;
+}
+
+/* Auto-stagger the direct children of a container */
+.stagger > * {
+  opacity: 0;
+  animation: fade-up 0.6s var(--ease-out-expo) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.22s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.28s;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 0.34s;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 0.4s;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 0.46s;
+}
+.stagger > *:nth-child(9) {
+  animation-delay: 0.52s;
+}
+.stagger > *:nth-child(10) {
+  animation-delay: 0.58s;
+}
+.stagger > *:nth-child(11) {
+  animation-delay: 0.64s;
+}
+.stagger > *:nth-child(12) {
+  animation-delay: 0.7s;
+}
+
+.delay-1 {
+  animation-delay: 0.06s;
+}
+.delay-2 {
+  animation-delay: 0.12s;
+}
+.delay-3 {
+  animation-delay: 0.18s;
+}
+.delay-4 {
+  animation-delay: 0.24s;
+}
+.delay-5 {
+  animation-delay: 0.3s;
+}
+
+/* ---------- Components ---------- */
+.card {
+  position: relative;
+  background-color: #fff;
+  border: 1px solid var(--color-stone);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
+  transition:
+    transform 0.4s var(--ease-out-expo),
+    box-shadow 0.4s var(--ease-out-expo),
+    border-color 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+  border-color: rgb(138 154 123 / 0.35);
+}
+
+.card-hover:active {
+  transform: translateY(-1px);
+}
+
+.btn-press {
+  transition:
+    transform 0.18s var(--ease-spring),
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.btn-press:hover {
+  box-shadow: 0 10px 20px -12px rgb(107 125 94 / 0.7);
+}
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+.progress-fill {
+  transform-origin: left center;
+  animation: progress-grow 1.1s var(--ease-out-expo) both;
+}
+
+.bar-grow {
+  transform-origin: bottom center;
+  animation: bar-grow 0.9s var(--ease-out-expo) both;
+}
+
+.animate-float {
+  animation: float 7s ease-in-out infinite;
+}
+
+.pulse-ring {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+/* Soft luminous sheen that sweeps across a card on hover */
+.sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.45) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+.sheen:hover::after {
+  animation: sheen 0.9s var(--ease-out-expo);
+}
+
+/* Gold accent line used under headings */
+.heading-rule {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.4rem;
+}
+.heading-rule::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 2.5rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-gold), transparent);
+  animation: fade-in 0.8s 0.3s ease both;
+}
+
+/* Decorative verse card glow */
+.verse-card {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(201 169 97 / 0.12), transparent 55%),
+    #fff;
+}
+
+/* ---------- Transitions ---------- */
+.page-enter-active {
+  transition:
+    opacity 0.4s ease,
+    transform 0.5s var(--ease-out-expo),
+    filter 0.5s ease;
+}
+.page-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(14px) scale(0.995);
+  filter: blur(2px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.pop-enter-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.35s var(--ease-spring);
+}
+.pop-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+}
+
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s var(--ease-out-expo);
+}
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* ---------- Accessibility ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
