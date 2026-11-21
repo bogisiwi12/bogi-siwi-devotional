@@ -1,19 +1,16 @@
 <script setup>
+import { onMounted } from 'vue'
 import { useDevotionalStore } from '@/stores/devotional'
 import { useFamilyStore } from '@/stores/family'
+import { useAuthStore } from '@/stores/auth'
 import { useCountUp } from '@/composables/useCountUp'
-import { computed } from 'vue'
 
 const devotionalStore = useDevotionalStore()
 const familyStore = useFamilyStore()
+const authStore = useAuthStore()
+onMounted(() => familyStore.init(authStore.user))
 
 const { formatted: progressLabel } = useCountUp(() => familyStore.totalProgress)
-
-const recentActivity = computed(() => [
-  { member: 'Emma', action: 'completed Genesis 2', time: '2 hours ago', icon: '📖' },
-  { member: 'David', action: 'added a prayer request', time: '5 hours ago', icon: '🙏' },
-  { member: 'Sarah', action: 'bookmarked Matthew 5:3', time: 'Yesterday', icon: '🔖' },
-])
 </script>
 
 <template>
@@ -86,9 +83,9 @@ const recentActivity = computed(() => [
     <!-- Family Activity -->
     <section class="card p-6 reveal delay-2">
       <p class="text-xs font-semibold uppercase tracking-[0.15em] text-gold mb-4">Family Activity</p>
-      <ul class="stagger space-y-1">
+      <ul v-if="familyStore.recentActivity.length" class="stagger space-y-1">
         <li
-          v-for="(act, i) in recentActivity"
+          v-for="(act, i) in familyStore.recentActivity"
           :key="i"
           class="flex items-center gap-3 text-sm rounded-xl px-2 py-2.5 -mx-2 transition-colors duration-300 hover:bg-parchment/70"
         >
@@ -101,9 +98,10 @@ const recentActivity = computed(() => [
             <span class="font-medium text-ink">{{ act.member }}</span>
             <span class="text-ink/60"> {{ act.action }}</span>
           </div>
-          <span class="text-xs text-ink/40">{{ act.time }}</span>
+          <span class="text-xs text-ink/40">{{ act.timeLabel }}</span>
         </li>
       </ul>
+      <p v-else class="text-sm text-ink/40 italic">No recent activity yet — start reading!</p>
     </section>
   </div>
 </template>

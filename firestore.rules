@@ -1,0 +1,249 @@
+rules_version = '2';
+
+// Data model: users/{uid} is the private profile. families/{familyId} is owned
+// by its uid (familyId == ownerUid). Feature collections live under families/{familyId}/.
+// The owner is identified by familyId == request.auth.uid (no extra get() needed).
+// Approved members are verified via a get() on the members subcollection.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    // Owner check: the family document ID is always the owner's UID.
+    function isOwner(familyId) {
+      return signedIn() && request.auth.uid == familyId;
+    }
+
+    // Approved member check: used only for document reads/writes, not list queries.
+    function approvedMember(familyId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.status == 'approved';
+    }
+
+    // Can read family content: either the owner or an approved member.
+    function canRead(familyId) {
+      return isOwner(familyId) || approvedMember(familyId);
+    }
+
+    function validMember(data, uid) {
+      return data.keys().hasOnly(['uid', 'email', 'name', 'role', 'status', 'streak', 'joinedAt'])
+        && data.uid == uid
+        && data.email is string && data.email.size() <= 320
+        && data.name is string && data.name.size() <= 120
+        && data.role in ['admin', 'member', 'parent', 'child']
+        && data.status in ['approved', 'pending']
+        && data.streak is int && data.streak >= 0 && data.streak <= 100000
+        && data.joinedAt is timestamp;
+    }
+    function validFamily(data) {
+      return data.keys().hasOnly(['ownerUid', 'name', 'createdAt'])
+        && data.ownerUid is string && data.name is string && data.name.size() <= 120
+        && data.createdAt is timestamp;
+    }
+    function validProfile(data, uid) {
+      return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'provider', 'role', 'createdAt', 'lastLoginAt', 'familyId', 'familyInviteId'])
+        && data.uid == uid
+        && data.email is string && data.email.size() <= 320
+        && data.displayName is string && data.displayName.size() <= 120
+        && data.photoURL is string && data.photoURL.size() <= 2048
+        && data.provider is string && data.provider.size() <= 40
+        && data.role == 'member'
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('lastLoginAt' in data) || data.lastLoginAt is timestamp)
+        && (!('familyId' in data) || (data.familyId is string && data.familyId.size() <= 128))
+        && (!('familyInviteId' in data) || (data.familyInviteId is string && data.familyInviteId.size() <= 320));
+    }
+    function hasClaimedInvite(familyId, uid, inviteId) {
+      return inviteId is string
+        && exists(/databases/$(database)/documents/families/$(familyId)/invitations/$(inviteId))
+        && get(/databases/$(database)/documents/families/$(familyId)/invitations/$(inviteId)).data.claimedUid == uid
+        && get(/databases/$(database)/documents/families/$(familyId)/invitations/$(inviteId)).data.email == request.auth.token.email;
+    }
+    function validReflection(data) {
+      return data.keys().hasOnly(['title', 'content', 'type', 'authorUid', 'author', 'createdAt'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 160
+        && data.content is string && data.content.size() <= 10000
+        && data.type in ['journal', 'study']
+        && data.authorUid == request.auth.uid
+        && data.author is string && data.author.size() <= 120
+        && data.createdAt == request.time;
+    }
+    function validPrayer(data) {
+      return data.keys().hasOnly(['text', 'authorUid', 'author', 'answered', 'createdAt', 'updatedAt'])
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 3000
+        && data.authorUid is string
+        && data.author is string && data.author.size() <= 120
+        && data.answered is bool
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+    function validPlan(data) {
+      return data.keys().hasOnly(['id', 'title', 'type', 'duration', 'description', 'progress', 'active', 'updatedBy', 'updatedAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 160
+        && data.type is string && data.type.size() <= 40
+        && data.duration is string && data.duration.size() <= 40
+        && data.description is string && data.description.size() <= 1000
+        && data.progress is number && data.progress >= 0 && data.progress <= 100
+        && data.active is bool && data.updatedBy == request.auth.uid
+        && data.updatedAt == request.time;
+    }
+    function validProgress(data) {
+      return data.keys().hasOnly(['reference', 'percent', 'updatedBy', 'updatedAt'])
+        && data.reference is string && data.reference.size() > 0 && data.reference.size() <= 120
+        && data.percent is number && data.percent >= 0 && data.percent <= 100
+        && data.updatedBy == request.auth.uid && data.updatedAt == request.time;
+    }
+    function validBookmark(data) {
+      return data.keys().hasOnly(['book', 'chapter', 'verse', 'text', 'createdBy', 'createdAt'])
+        && data.book is string && data.book.size() > 0 && data.book.size() <= 80
+        && data.chapter is int && data.chapter > 0 && data.verse is int && data.verse > 0
+        && data.text is string && data.text.size() <= 2000
+        && data.createdBy == request.auth.uid && data.createdAt == request.time;
+    }
+    function validDevotionalRead(data) {
+      return data.keys().hasOnly(['completed', 'updatedBy', 'updatedAt'])
+        && data.completed is bool && data.updatedBy == request.auth.uid && data.updatedAt == request.time;
+    }
+    function validDevotional(data, date) {
+      return data.keys().hasOnly(['title', 'scripture', 'verse', 'message', 'meditation', 'prayer', 'date', 'createdBy', 'createdAt'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 160
+        && data.scripture is string && data.scripture.size() <= 120
+        && data.verse is string && data.verse.size() <= 2000
+        && data.message is string && data.message.size() <= 5000
+        && data.meditation is string && data.meditation.size() <= 2000
+        && data.prayer is string && data.prayer.size() <= 2000
+        && data.date == date && data.createdBy is string && data.createdAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid && validProfile(request.resource.data, uid)
+        && request.resource.data.email == request.auth.token.email
+        && (!('familyId' in request.resource.data)
+          || hasClaimedInvite(request.resource.data.familyId, uid, request.resource.data.familyInviteId));
+      allow update: if signedIn() && request.auth.uid == uid && validProfile(request.resource.data, uid)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == resource.data.role
+        && (!('familyId' in request.resource.data)
+          || (request.resource.data.familyId == (('familyId' in resource.data) ? resource.data.familyId : '')
+            || hasClaimedInvite(request.resource.data.familyId, uid, request.resource.data.familyInviteId)));
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /families/{familyId} {
+      allow read: if canRead(familyId);
+      allow create: if signedIn() && request.auth.uid == familyId
+        && validFamily(request.resource.data)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(familyId) && validFamily(request.resource.data)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(familyId);
+
+      match /members/{uid} {
+        // List query: allow owner (by UID) or the member reading their own doc.
+        // Approved-member list queries use isOwner to avoid double get() in queries.
+        allow list: if isOwner(familyId) || request.auth.uid == uid;
+        allow get:  if isOwner(familyId) || approvedMember(familyId) || request.auth.uid == uid;
+        allow create: if isOwner(familyId)
+          && validMember(request.resource.data, uid)
+          && request.resource.data.status == 'approved'
+          && request.resource.data.joinedAt == request.time
+          && (uid == request.auth.uid
+            || (getAfter(/databases/$(database)/documents/families/$(familyId)/invitations/$(request.resource.data.email)).data.status == 'approved'
+              && getAfter(/databases/$(database)/documents/families/$(familyId)/invitations/$(request.resource.data.email)).data.claimedUid == uid));
+        allow update: if isOwner(familyId) && validMember(request.resource.data, uid)
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.joinedAt == resource.data.joinedAt;
+        allow delete: if isOwner(familyId);
+      }
+
+      match /invitations/{inviteId} {
+        // List query: owner only (by UID, no get() needed).
+        allow list: if isOwner(familyId);
+        allow get:  if isOwner(familyId) || (signedIn() && resource.data.email == request.auth.token.email);
+        allow create: if isOwner(familyId)
+          && request.resource.data.keys().hasOnly(['email', 'status', 'createdBy', 'createdAt', 'claimedUid'])
+          && request.resource.data.email is string && request.resource.data.email.size() <= 320
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.claimedUid == '';
+        allow update: if (isOwner(familyId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedAt'])
+            && resource.data.claimedUid is string && resource.data.claimedUid.size() > 0
+            && request.resource.data.status == 'approved'
+            && request.resource.data.approvedAt == request.time)
+          || (signedIn()
+            && resource.data.status == 'pending'
+            && resource.data.email == request.auth.token.email
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedUid', 'claimedAt'])
+            && request.resource.data.claimedUid == request.auth.uid
+            && request.resource.data.claimedAt == request.time);
+        allow delete: if isOwner(familyId);
+      }
+
+      match /reflections/{id} {
+        allow list, get: if isOwner(familyId) || (approvedMember(familyId) && resource.data.authorUid == request.auth.uid);
+        allow create: if approvedMember(familyId) && validReflection(request.resource.data);
+        allow update: if approvedMember(familyId) && resource.data.authorUid == request.auth.uid
+          && validReflection(request.resource.data)
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(familyId) || (approvedMember(familyId) && resource.data.authorUid == request.auth.uid);
+      }
+
+      match /prayers/{id} {
+        allow list, get: if canRead(familyId);
+        allow create: if approvedMember(familyId) && validPrayer(request.resource.data)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if approvedMember(familyId) && validPrayer(request.resource.data)
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answered', 'updatedAt']);
+        allow delete: if isOwner(familyId) || (approvedMember(familyId) && resource.data.authorUid == request.auth.uid);
+      }
+
+      match /readingPlans/{id} {
+        allow list, get: if canRead(familyId);
+        allow create, update: if approvedMember(familyId) && validPlan(request.resource.data);
+        allow delete: if isOwner(familyId);
+      }
+
+      match /readingProgress/{id} {
+        allow list, get: if canRead(familyId);
+        allow create, update: if approvedMember(familyId) && validProgress(request.resource.data);
+        allow delete: if approvedMember(familyId) && resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /bookmarks/{id} {
+        allow list, get: if canRead(familyId);
+        allow create: if approvedMember(familyId) && validBookmark(request.resource.data);
+        allow update: if approvedMember(familyId) && validBookmark(request.resource.data)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if approvedMember(familyId);
+      }
+
+      match /devotionalReads/{date} {
+        allow list, get: if canRead(familyId);
+        allow create, update: if approvedMember(familyId) && validDevotionalRead(request.resource.data);
+        allow delete: if approvedMember(familyId) && resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /devotionals/{date} {
+        allow list, get: if canRead(familyId);
+        allow create: if approvedMember(familyId) && validDevotional(request.resource.data, date)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if isOwner(familyId) && validDevotional(request.resource.data, date)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(familyId);
+      }
+    }
+  }
+}

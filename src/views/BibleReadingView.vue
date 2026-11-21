@@ -8,6 +8,7 @@ const familyStore = useFamilyStore()
 
 const testament = ref('old')
 const readerRef = ref(null)
+const progressError = ref('')
 
 const visibleBooks = computed(() =>
   bible.localizedBooks.filter((book) => book.testament === testament.value)
@@ -39,6 +40,21 @@ const openBook = async (book) => {
   await nextTick()
   readerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+const markChapterRead = async () => {
+  if (!bible.currentBook) return
+  progressError.value = ''
+  try { await familyStore.saveProgress(`${bible.currentBook.name} ${bible.activeChapterNumber}`, 100) }
+  catch (err) { progressError.value = err.message }
+}
+
+const toggleBookmark = async (verse) => {
+  try { await familyStore.toggleBookmark(bible.currentBook.name, bible.activeChapterNumber, verse.verse, verse.text) }
+  catch (err) { progressError.value = err.message }
+}
+const isBookmarked = (verse) => familyStore.bookmarks.some((bookmark) =>
+  bookmark.book === bible.currentBook?.name && bookmark.chapter === bible.activeChapterNumber && bookmark.verse === verse.verse,
+)
 </script>
 
 <template>
@@ -156,14 +172,20 @@ const openBook = async (book) => {
           <p class="text-xs font-semibold uppercase tracking-[0.15em] text-gold">
             {{ ui.chapter }} {{ bible.activeChapterNumber }} · {{ bible.translation }}
           </p>
-          <p
+          <div
             v-for="verse in bible.currentVerses"
             :key="verse.verse"
-            class="flex gap-3 text-sm leading-relaxed transition-colors duration-300 hover:bg-parchment/60 rounded-lg px-2 py-1 -mx-2"
+            class="flex items-start gap-3 text-sm leading-relaxed transition-colors duration-300 hover:bg-parchment/60 rounded-lg px-2 py-1 -mx-2"
           >
             <span class="text-xs text-gold font-semibold pt-0.5 w-5 shrink-0 text-right">{{ verse.verse }}</span>
-            <span class="text-ink/80">{{ verse.text }}</span>
-          </p>
+            <span class="text-ink/80 flex-1">{{ verse.text }}</span>
+            <button @click="toggleBookmark(verse)" class="text-xs text-gold hover:text-sage" :aria-label="isBookmarked(verse) ? 'Remove bookmark' : 'Bookmark verse'">{{ isBookmarked(verse) ? '★' : '☆' }}</button>
+          </div>
+        </div>
+        <div v-if="bible.currentVerses.length" class="border-t border-stone pt-4 flex items-center justify-between gap-3">
+          <p v-if="progressError" class="text-xs text-rose">{{ progressError }}</p>
+          <span v-else class="text-xs text-ink/45">{{ familyStore.readingProgress[`${bible.currentBook.name} ${bible.activeChapterNumber}`] === 100 ? 'Chapter marked as read' : 'Track this chapter in Spiritual Growth' }}</span>
+          <button @click="markChapterRead" class="text-sm font-medium text-sage hover:text-sage-dark">Mark as read</button>
         </div>
 
         <Transition name="fade" mode="out-in">

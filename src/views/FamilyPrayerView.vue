@@ -1,14 +1,25 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useFamilyStore } from '@/stores/family'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useFamilyStore()
+const auth = useAuthStore()
 const newPrayer = ref('')
+const error = ref('')
+onMounted(() => store.init(auth.user))
 
-const submit = () => {
+const submit = async () => {
   if (!newPrayer.value.trim()) return
-  store.addPrayerRequest(newPrayer.value)
+  error.value = ''
+  try { await store.addPrayerRequest(newPrayer.value) }
+  catch (err) { error.value = err.message; return }
   newPrayer.value = ''
+}
+
+const toggleAnswered = async (req) => {
+  try { await store.togglePrayerAnswered(req.id, req.answered) }
+  catch (err) { error.value = err.message }
 }
 
 const activePrayers = computed(() => store.prayerRequests.filter(r => !r.answered))
@@ -34,6 +45,7 @@ const answeredPrayers = computed(() => store.prayerRequests.filter(r => r.answer
         Pray
       </button>
     </div>
+    <p v-if="error" class="text-sm text-rose">{{ error }}</p>
 
     <!-- Active -->
     <section class="reveal delay-2">
@@ -45,7 +57,7 @@ const answeredPrayers = computed(() => store.prayerRequests.filter(r => r.answer
           class="card card-hover p-4 flex items-start gap-3 group"
         >
           <button
-            @click="store.togglePrayerAnswered(req.id)"
+            @click="toggleAnswered(req)"
             class="mt-1 w-5 h-5 rounded border-2 border-sage/40 hover:border-sage flex items-center justify-center transition-all duration-300 btn-press group/check"
             title="Mark as answered"
           >
@@ -53,7 +65,7 @@ const answeredPrayers = computed(() => store.prayerRequests.filter(r => r.answer
           </button>
           <div class="flex-1">
             <p class="text-sm text-ink">{{ req.text }}</p>
-            <p class="text-xs text-ink/40 mt-1">{{ req.author }} · {{ req.date }}</p>
+            <p class="text-xs text-ink/40 mt-1">{{ req.author }} · {{ req.createdAt?.toDate?.().toLocaleDateString() }}</p>
           </div>
         </div>
       </TransitionGroup>
@@ -74,7 +86,7 @@ const answeredPrayers = computed(() => store.prayerRequests.filter(r => r.answer
           <span class="text-sage mt-0.5">✓</span>
           <div class="flex-1">
             <p class="text-sm text-ink/70 line-through">{{ req.text }}</p>
-            <p class="text-xs text-ink/40 mt-1">{{ req.author }} · {{ req.date }}</p>
+            <p class="text-xs text-ink/40 mt-1">{{ req.author }} · {{ req.createdAt?.toDate?.().toLocaleDateString() }}</p>
           </div>
         </div>
       </TransitionGroup>

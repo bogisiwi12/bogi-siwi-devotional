@@ -1,16 +1,22 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useFamilyStore } from '@/stores/family'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useFamilyStore()
+const auth = useAuthStore()
+onMounted(() => store.init(auth.user))
 const showForm = ref(false)
 const newTitle = ref('')
 const newContent = ref('')
 const newType = ref('journal')
+const error = ref('')
 
-const submit = () => {
+const submit = async () => {
   if (!newTitle.value.trim()) return
-  store.addReflection({ title: newTitle.value, content: newContent.value, type: newType.value })
+  error.value = ''
+  try { await store.addReflection({ title: newTitle.value, content: newContent.value, type: newType.value }) }
+  catch (err) { error.value = err.message; return }
   newTitle.value = ''
   newContent.value = ''
   showForm.value = false
@@ -58,6 +64,7 @@ const submit = () => {
         </button>
       </div>
     </Transition>
+    <p v-if="error" class="text-sm text-rose">{{ error }}</p>
 
     <!-- List -->
     <TransitionGroup name="list" tag="div" class="space-y-4">
@@ -73,7 +80,7 @@ const submit = () => {
           >
             {{ r.type === 'study' ? 'Study Note' : 'Journal' }}
           </span>
-          <span class="text-xs text-ink/40">{{ r.date }}</span>
+          <span class="text-xs text-ink/40">{{ r.createdAt?.toDate?.().toLocaleDateString() || r.date }}</span>
         </div>
         <h3 class="font-serif text-lg font-semibold text-ink">{{ r.title }}</h3>
         <p class="text-sm text-ink/70 mt-2 leading-relaxed">{{ r.content }}</p>

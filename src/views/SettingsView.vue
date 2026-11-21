@@ -1,10 +1,26 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const router = useRouter()
 
 const language = ref('English')
 const reminderTime = ref('07:00')
 const appearance = ref('light')
 const notifications = ref(true)
+
+const signedInAs = computed(() => authStore.emailAddress || 'sarah.chen@email.com')
+
+async function signOut() {
+  try {
+    await authStore.logout()
+  } catch {
+    // Ignore network errors and return to login regardless.
+  }
+  router.push({ name: 'login' })
+}
 </script>
 
 <template>
@@ -90,8 +106,13 @@ const notifications = ref(true)
       <!-- Account -->
       <div class="p-5 transition-colors duration-300 hover:bg-parchment/50">
         <p class="text-sm font-medium text-ink mb-2">Account</p>
-        <p class="text-xs text-ink/50 mb-3">Signed in as sarah.chen@email.com</p>
-        <button class="text-sm text-rose hover:text-rose/80 font-medium btn-press">Sign Out</button>
+        <p class="text-xs text-ink/50 mb-3">Signed in as {{ signedInAs }}</p>
+        <button
+          @click="signOut"
+          class="text-sm text-rose hover:text-rose/80 font-medium btn-press"
+        >
+          Sign Out
+        </button>
       </div>
     </div>
   </div>

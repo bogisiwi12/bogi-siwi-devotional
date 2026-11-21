@@ -1,18 +1,19 @@
 <script setup>
+import { computed, onMounted } from 'vue'
 import { useFamilyStore } from '@/stores/family'
+import { useAuthStore } from '@/stores/auth'
 import { useCountUp } from '@/composables/useCountUp'
 
 const store = useFamilyStore()
+const auth = useAuthStore()
+onMounted(() => store.init(auth.user))
 
 const { formatted: streak } = useCountUp(() => store.currentStreak)
 const { formatted: progress } = useCountUp(() => store.totalProgress)
 const { formatted: bookmarkCount } = useCountUp(() => store.bookmarks.length)
 
-const weeklyData = [
-  { day: 'Mon', chapters: 2 }, { day: 'Tue', chapters: 3 }, { day: 'Wed', chapters: 1 },
-  { day: 'Thu', chapters: 4 }, { day: 'Fri', chapters: 2 }, { day: 'Sat', chapters: 3 }, { day: 'Sun', chapters: 5 },
-]
-const maxChapters = Math.max(...weeklyData.map(d => d.chapters))
+const weeklyData = computed(() => store.weeklyReading)
+const maxChapters = computed(() => Math.max(1, ...weeklyData.value.map((day) => day.chapters)))
 </script>
 
 <template>
