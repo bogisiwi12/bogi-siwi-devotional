@@ -27,6 +27,10 @@ async function signOut() {
   <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="font-serif text-2xl sm:text-3xl font-bold text-ink heading-rule reveal">Settings</h1>
 
+    <RouterLink v-if="authStore.role === 'admin'" to="/admin/family-requests" class="card block p-5 text-sm font-medium text-sage hover:bg-sage/5">
+      Review family group requests →
+    </RouterLink>
+
     <div class="card overflow-hidden divide-y divide-stone reveal delay-1">
       <!-- Language -->
       <div class="p-5 flex items-center justify-between transition-colors duration-300 hover:bg-parchment/50">

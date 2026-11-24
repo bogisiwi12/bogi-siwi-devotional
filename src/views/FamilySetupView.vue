@@ -61,7 +61,13 @@ async function signOut() {
       </div>
 
       <!-- Awaiting approval -->
-      <div v-if="store.awaitingApproval" class="card p-8 text-center space-y-4">
+      <div v-if="store.familyRequestStatus === 'pending'" class="card p-8 text-center space-y-4">
+        <div class="text-5xl">🙏</div>
+        <h1 class="font-serif text-2xl font-bold text-ink">Request sent</h1>
+        <p class="text-sm text-ink/60 leading-relaxed">An administrator must approve your family group request. This page will update once your family is ready.</p>
+      </div>
+
+      <div v-else-if="store.awaitingApproval" class="card p-8 text-center space-y-4">
         <div class="text-5xl">🙏</div>
         <h1 class="font-serif text-2xl font-bold text-ink">Invitation accepted!</h1>
         <p class="text-sm text-ink/60 leading-relaxed">
@@ -79,7 +85,7 @@ async function signOut() {
       </div>
 
       <!-- No family — either create one (first admin) or explain they need an invite -->
-  <div v-else-if="pendingInvite" class="card p-8 text-center space-y-4">
+      <div v-else-if="pendingInvite" class="card p-8 text-center space-y-4">
     <div class="text-5xl">ðŸ™</div>
     <h1 class="font-serif text-2xl font-bold text-ink">Joining your invited family</h1>
     <p class="text-sm text-ink/60 leading-relaxed">
@@ -96,7 +102,7 @@ async function signOut() {
           <div class="text-5xl">👨‍👩‍👧</div>
           <h1 class="font-serif text-2xl font-bold text-ink">No family group yet</h1>
           <p class="text-sm text-ink/60 leading-relaxed">
-            You're not part of a family group. You can create one as the family admin,
+            You're not part of a family group. You can request to create one,
             or wait for someone to send you an invitation.
           </p>
         </div>
@@ -104,14 +110,14 @@ async function signOut() {
         <div class="border-t border-stone pt-5 space-y-3">
           <p class="text-xs font-semibold uppercase tracking-[0.15em] text-gold">Create a family group</p>
           <p class="text-sm text-ink/60">
-            As admin you can invite family members, approve them, and manage their roles.
+            Your request will be reviewed by an administrator. Once approved, you will join as a parent.
           </p>
           <button
             @click="setupFamily"
             :disabled="busy"
             class="w-full bg-sage hover:bg-sage-dark text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
           >
-            {{ busy ? 'Creating…' : 'Create my family group' }}
+            {{ busy ? 'Submitting…' : 'Request family group' }}
           </button>
           <p v-if="error" class="text-xs text-rose">{{ error }}</p>
         </div>

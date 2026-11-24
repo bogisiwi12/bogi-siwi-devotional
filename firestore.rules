@@ -30,7 +30,7 @@ service cloud.firestore {
         && data.uid == uid
         && data.email is string && data.email.size() <= 320
         && data.name is string && data.name.size() <= 120
-        && data.role in ['admin', 'member', 'parent', 'child']
+        && data.role in ['parent', 'child']
         && data.status in ['approved', 'pending']
         && data.streak is int && data.streak >= 0 && data.streak <= 100000
         && data.joinedAt is timestamp;
@@ -47,7 +47,7 @@ service cloud.firestore {
         && data.displayName is string && data.displayName.size() <= 120
         && data.photoURL is string && data.photoURL.size() <= 2048
         && data.provider is string && data.provider.size() <= 40
-        && data.role == 'member'
+        && data.role in ['member', 'admin']
         && (!('createdAt' in data) || data.createdAt is timestamp)
         && (!('lastLoginAt' in data) || data.lastLoginAt is timestamp)
         && (!('familyId' in data) || (data.familyId is string && data.familyId.size() <= 128))
@@ -119,6 +119,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn() && request.auth.uid == uid && validProfile(request.resource.data, uid)
+        && request.resource.data.role == 'member'
         && request.resource.data.email == request.auth.token.email
         && (!('familyId' in request.resource.data)
           || hasClaimedInvite(request.resource.data.familyId, uid, request.resource.data.familyInviteId));
@@ -131,12 +132,33 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 
+    function isPlatformAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /familyRequests/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'status', 'createdAt'])
+        && request.resource.data.uid == uid && request.resource.data.email == request.auth.token.email
+        && request.resource.data.name is string && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow get: if signedIn() && (request.auth.uid == uid || isPlatformAdmin());
+      allow list: if isPlatformAdmin();
+      allow update: if isPlatformAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt'])
+        && request.resource.data.status in ['approved', 'rejected'] && request.resource.data.reviewedAt == request.time;
+      allow delete: if signedIn() && request.auth.uid == uid && resource.data.status == 'rejected';
+    }
+
     match /families/{familyId} {
       allow read: if canRead(familyId);
-      allow create: if signedIn() && request.auth.uid == familyId
+      allow create: if ((signedIn() && request.auth.uid == familyId) || isPlatformAdmin())
         && validFamily(request.resource.data)
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.ownerUid == familyId
+        && request.resource.data.createdAt == request.time
+        && ((request.auth.uid == familyId) || (isPlatformAdmin()
+          && getAfter(/databases/$(database)/documents/familyRequests/$(familyId)).data.status == 'approved'));
       allow update: if isOwner(familyId) && validFamily(request.resource.data)
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.createdAt == resource.data.createdAt;
@@ -147,11 +169,12 @@ service cloud.firestore {
         // Pending invitees may read only their own member document, if present.
         allow list: if canRead(familyId);
         allow get:  if isOwner(familyId) || approvedMember(familyId) || request.auth.uid == uid;
-        allow create: if isOwner(familyId)
+        allow create: if (isOwner(familyId) || (isPlatformAdmin()
+            && getAfter(/databases/$(database)/documents/familyRequests/$(familyId)).data.status == 'approved'))
           && validMember(request.resource.data, uid)
           && request.resource.data.status == 'approved'
           && request.resource.data.joinedAt == request.time
-          && (uid == request.auth.uid
+          && (uid == familyId
             || (getAfter(/databases/$(database)/documents/families/$(familyId)/invitations/$(request.resource.data.email)).data.status == 'approved'
               && getAfter(/databases/$(database)/documents/families/$(familyId)/invitations/$(request.resource.data.email)).data.claimedUid == uid));
         allow update: if isOwner(familyId) && validMember(request.resource.data, uid)

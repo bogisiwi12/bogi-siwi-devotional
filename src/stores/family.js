@@ -17,6 +17,7 @@ export const useFamilyStore = defineStore('family', () => {
   const loading = ref(false)
   const error = ref('')
   const awaitingApproval = ref(false)
+  const familyRequestStatus = ref('')
   const noFamily = ref(false)
   const familyId = ref('')
   let stop = []
@@ -110,10 +111,17 @@ export const useFamilyStore = defineStore('family', () => {
     try {
       const profile = await getDoc(doc(db, 'users', user.uid))
       const linkedFamilyId = profile.data()?.familyId
+      const requestSnapshot = await getDoc(doc(db, 'familyRequests', user.uid))
+      familyRequestStatus.value = requestSnapshot.data()?.status || ''
 
       // ── Case 1: user owns their own family (they registered as admin) ──
       const ownedSnap = await getDoc(doc(db, 'families', user.uid))
       if (!linkedFamilyId && ownedSnap.exists()) {
+        const ownerMemberRef = doc(db, 'families', user.uid, 'members', user.uid)
+        const ownerMember = await getDoc(ownerMemberRef)
+        if (ownerMember.exists() && ownerMember.data().role !== 'parent') {
+          await updateDoc(ownerMemberRef, { role: 'parent' })
+        }
         // Existing admin — family doc already exists, just connect.
         familyId.value = user.uid
         startedFor = `${user.uid}:${familyId.value}`
@@ -152,6 +160,14 @@ export const useFamilyStore = defineStore('family', () => {
       // Do NOT auto-create anything. Mark as noFamily so the UI can show
       // an "ask for an invitation" screen.
       noFamily.value = true
+      const requestRef = doc(db, 'familyRequests', user.uid)
+      stop.push(onSnapshot(requestRef, (snapshot) => {
+        familyRequestStatus.value = snapshot.data()?.status || ''
+        if (familyRequestStatus.value === 'approved') {
+          dispose()
+          init(user)
+        }
+      }, (err) => { error.value = err.message }))
 
     } catch (err) { error.value = err.message }
     finally { loading.value = false }
@@ -203,24 +219,44 @@ export const useFamilyStore = defineStore('family', () => {
       await init(user)
       throw new Error('You already have a family invitation. It is being connected now; you cannot create a separate family.')
     }
-    const owned = doc(db, 'families', user.uid)
-    await setDoc(owned, {
-      ownerUid: user.uid,
-      name: `${user.displayName || 'My'} Family`,
-      createdAt: serverTimestamp(),
+    const existingRequest = await getDoc(doc(db, 'familyRequests', user.uid))
+    if (existingRequest.exists() && existingRequest.data().status === 'pending') {
+      familyRequestStatus.value = 'pending'
+      return
+    }
+    if (existingRequest.exists() && existingRequest.data().status === 'approved') {
+      dispose()
+      await init(user)
+      return
+    }
+    if (existingRequest.exists() && existingRequest.data().status === 'rejected') {
+      await deleteDoc(doc(db, 'familyRequests', user.uid))
+    }
+    await setDoc(doc(db, 'familyRequests', user.uid), {
+      uid: user.uid, email: user.email || '', name: user.displayName || user.email?.split('@')[0] || 'Family owner',
+      status: 'pending', createdAt: serverTimestamp(),
     })
-    await setDoc(doc(db, 'families', user.uid, 'members', user.uid), {
-      uid: user.uid,
-      email: user.email || '',
-      name: user.displayName || user.email?.split('@')[0] || 'Family Admin',
-      role: 'admin',
-      status: 'approved',
-      streak: 0,
-      joinedAt: serverTimestamp(),
+    familyRequestStatus.value = 'pending'
+  }
+
+  async function approveFamilyRequest(request) {
+    const batch = writeBatch(db)
+    batch.update(doc(db, 'familyRequests', request.uid), { status: 'approved', reviewedAt: serverTimestamp() })
+    batch.set(doc(db, 'families', request.uid), { ownerUid: request.uid, name: `${request.name || 'My'} Family`, createdAt: serverTimestamp() })
+    batch.set(doc(db, 'families', request.uid, 'members', request.uid), {
+      uid: request.uid, email: request.email || '', name: request.name || 'Family Parent', role: 'parent', status: 'approved', streak: 0, joinedAt: serverTimestamp(),
     })
-    noFamily.value = false
-    dispose()
-    await init(user)
+    await batch.commit()
+  }
+
+  async function rejectFamilyRequest(request) {
+    await updateDoc(doc(db, 'familyRequests', request.uid), { status: 'rejected', reviewedAt: serverTimestamp() })
+    if (request.uid === auth.currentUser?.uid) familyRequestStatus.value = 'rejected'
+  }
+
+  async function loadFamilyRequests(callback, onError = () => {}) {
+    const source = query(collection(db, 'familyRequests'), where('status', '==', 'pending'))
+    return onSnapshot(source, (snapshot) => callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))), onError)
   }
   async function addReflection({ title, content, type }) {
     const user = auth.currentUser
@@ -269,7 +305,7 @@ export const useFamilyStore = defineStore('family', () => {
     const batch = writeBatch(db)
     batch.set(userRef, {
       uid: invite.claimedUid, email: invite.email, name: invite.email.split('@')[0],
-      role: 'member', status: 'approved', streak: 0, joinedAt: serverTimestamp(),
+      role: 'child', status: 'approved', streak: 0, joinedAt: serverTimestamp(),
     })
     batch.update(invitationRef, { status: 'approved', approvedAt: serverTimestamp() })
     await batch.commit()
@@ -358,7 +394,7 @@ export const useFamilyStore = defineStore('family', () => {
     members, pendingInvitations, reflections, prayerRequests, readingPlans: computed(() => data.value.readingPlans),
     readingProgress, bookmarks, devotionalReads: computed(() => data.value.devotionalReads),
     totalProgress, currentStreak, weeklyReading, recentActivity, familyId, loading, error, init, dispose,
-    awaitingApproval, noFamily,
+    awaitingApproval, noFamily, familyRequestStatus, approveFamilyRequest, rejectFamilyRequest, loadFamilyRequests,
     addReflection, addPrayerRequest, togglePrayerAnswered, inviteMember, approveInvitation,
     savePlan, saveProgress, saveDevotionalRead, getDailyDevotional, toggleBookmark, claimInvitation,
     removeMember, deleteInvite, resendInvite, updateMemberRole, createFamily,

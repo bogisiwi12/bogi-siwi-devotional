@@ -16,14 +16,11 @@ onMounted(() => store.init(auth.user))
 const ROLES = [
   { value: 'parent', label: 'Parent', icon: '👨‍👩‍👧' },
   { value: 'child',  label: 'Child',  icon: '🧒' },
-  { value: 'member', label: 'Member', icon: '🙂' },
 ]
 
 const ROLE_META = {
-  admin:  { label: 'Admin',  icon: '👑' },
   parent: { label: 'Parent', icon: '👨‍👩‍👧' },
   child:  { label: 'Child',  icon: '🧒' },
-  member: { label: 'Member', icon: '🙂' },
 }
 
 function isOwner() {
@@ -134,14 +131,8 @@ async function remove(member) {
 
         <!-- Role badge / selector -->
         <div class="shrink-0 flex items-center gap-2">
-          <!-- Admin badge — not editable -->
-          <span
-            v-if="member.role === 'admin'"
-            class="text-xs font-semibold px-2.5 py-1 rounded-full bg-gold/15 text-gold"
-          >Admin</span>
-
-          <!-- Role selector for non-admin members (owner only) -->
-          <template v-else-if="isOwner()">
+          <!-- Family role selector (owner only) -->
+          <template v-if="isOwner() && member.uid !== auth.user?.uid">
             <select
               :value="member.role"
               :disabled="actionBusy === `role-${member.uid}`"
@@ -166,13 +157,12 @@ async function remove(member) {
             :class="{
               'bg-sage/15 text-sage':   member.role === 'parent',
               'bg-blue-50 text-blue-500': member.role === 'child',
-              'bg-stone text-ink/60':   member.role === 'member',
             }"
           >{{ ROLE_META[member.role]?.label ?? member.role }}</span>
 
           <!-- Remove button (owner only, hover-revealed) -->
           <button
-            v-if="isOwner() && member.role !== 'admin'"
+            v-if="isOwner() && member.uid !== auth.user?.uid"
             @click="remove(member)"
             :disabled="actionBusy === `remove-${member.uid}`"
             class="opacity-0 group-hover:opacity-100 text-xs text-rose/70 hover:text-rose
@@ -244,8 +234,8 @@ async function remove(member) {
       <p v-if="notice" class="text-sm text-sage mt-2">✓ {{ notice }}</p>
       <p v-if="error" class="text-sm text-rose mt-2">{{ error }}</p>
       <p class="text-xs text-ink/40 mt-3 leading-relaxed">
-        They'll receive an email invitation. Once they accept and you approve them, you can set their
-        role to <strong>Parent</strong> or <strong>Child</strong> using the selector next to their name.
+        They'll receive an email invitation. After they accept and you approve them, they join as a
+        <strong>Child</strong>. You can change their role to <strong>Parent</strong> at any time.
       </p>
     </section>
 
@@ -253,10 +243,8 @@ async function remove(member) {
     <section class="card p-5 reveal delay-2">
       <h2 class="text-xs font-semibold uppercase tracking-[0.15em] text-gold mb-3">Roles</h2>
       <ul class="space-y-2 text-sm text-ink/70">
-        <li class="flex items-center gap-2"><span>👑</span><strong class="text-ink">Admin</strong> — family owner, manages members and invitations</li>
         <li class="flex items-center gap-2"><span>👨‍👩‍👧</span><strong class="text-ink">Parent</strong> — adult family member</li>
         <li class="flex items-center gap-2"><span>🧒</span><strong class="text-ink">Child</strong> — younger family member</li>
-        <li class="flex items-center gap-2"><span>🙂</span><strong class="text-ink">Member</strong> — default role before assignment</li>
       </ul>
     </section>
   </div>

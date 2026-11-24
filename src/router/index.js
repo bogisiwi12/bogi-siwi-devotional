@@ -16,6 +16,7 @@ const router = createRouter({
     { path: '/growth',     name: 'growth',     component: () => import('@/views/SpiritualGrowthView.vue'),         meta: { requiresAuth: true } },
     { path: '/members',    name: 'members',    component: () => import('@/views/FamilyMembersView.vue'),           meta: { requiresAuth: true } },
     { path: '/settings',   name: 'settings',   component: () => import('@/views/SettingsView.vue'),                meta: { requiresAuth: true } },
+    { path: '/admin/family-requests', name: 'family-requests', component: () => import('@/views/FamilyRequestsView.vue'), meta: { requiresAuth: true, layout: 'plain' } },
     { path: '/setup',      name: 'setup',      component: () => import('@/views/FamilySetupView.vue'),             meta: { requiresAuth: true, layout: 'plain' } },
     { path: '/login',      name: 'login',      component: () => import('@/views/AuthView.vue'),                    meta: { layout: 'auth', guestOnly: true } },
     { path: '/register',   name: 'register',   component: () => import('@/views/AuthView.vue'),                    meta: { layout: 'auth', guestOnly: true } },
@@ -44,11 +45,12 @@ router.beforeEach(async (to) => {
 
   // For authenticated routes, make sure the family store is initialised.
   if (requiresAuth && authStore.isAuthenticated) {
+    if (to.name === 'family-requests') return true
     const familyStore = useFamilyStore()
     await familyStore.init(authStore.user)
 
     // User has no family and no invite — send to setup, except if already there.
-    if (familyStore.noFamily && to.name !== 'setup') {
+    if (familyStore.noFamily && to.name !== 'setup' && authStore.role !== 'admin') {
       return { name: 'setup' }
     }
 
