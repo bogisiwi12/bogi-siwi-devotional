@@ -1,22 +1,34 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 const route = useRoute()
+const authStore = useAuthStore()
+const settings = useSettingsStore()
 
-const links = [
-  { name: 'Dashboard', path: '/', icon: '🏠' },
-  { name: 'Bible Reading', path: '/bible', icon: '📖' },
-  { name: 'Daily Devotional', path: '/devotional', icon: '☀️' },
-  { name: 'My Reflections', path: '/reflections', icon: '✍️' },
-  { name: 'Family Prayer', path: '/prayer', icon: '🙏' },
-  { name: 'Reading Plans', path: '/plans', icon: '📋' },
-  { name: 'Spiritual Growth', path: '/growth', icon: '🌱' },
-  { name: 'Family Members', path: '/members', icon: '👨‍👩‍👧' },
-  { name: 'Settings', path: '/settings', icon: '⚙️' },
-]
+const links = computed(() => {
+  const items = [
+    { name: settings.t('nav.dashboard'), path: '/', icon: '🏠' },
+    { name: settings.t('nav.bible'), path: '/bible', icon: '📖' },
+    { name: settings.t('nav.devotional'), path: '/devotional', icon: '☀️' },
+    { name: settings.t('nav.reflections'), path: '/reflections', icon: '✍️' },
+    { name: settings.t('nav.prayer'), path: '/prayer', icon: '🙏' },
+    { name: settings.t('nav.plans'), path: '/plans', icon: '📋' },
+    { name: settings.t('nav.growth'), path: '/growth', icon: '🌱' },
+    { name: settings.t('nav.members'), path: '/members', icon: '👨‍👩‍👧' },
+    { name: settings.t('nav.settings'), path: '/settings', icon: '⚙️' },
+  ]
+
+  if (authStore.role === 'admin') {
+    items.push({ name: 'Family Requests', path: '/admin/family-requests', icon: '🛡️' })
+  }
+
+  return items
+})
 
 const isActive = (path) => route.path === path
 const sidebarClass = computed(() =>
@@ -41,8 +53,8 @@ const sidebarClass = computed(() =>
           ✝
         </div>
         <div>
-          <h1 class="font-serif text-xl font-bold text-ink tracking-tight">Family Bible</h1>
-          <p class="text-xs text-sage mt-0.5">Together in the Word</p>
+          <h1 class="font-serif text-xl font-bold text-ink tracking-tight">{{ settings.t('appName') }}</h1>
+          <p class="text-xs text-sage mt-0.5">{{ settings.t('appTagline') }}</p>
         </div>
       </div>
     </div>

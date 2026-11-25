@@ -45,7 +45,9 @@ router.beforeEach(async (to) => {
 
   // For authenticated routes, make sure the family store is initialised.
   if (requiresAuth && authStore.isAuthenticated) {
-    if (to.name === 'family-requests') return true
+    if (to.name === 'family-requests') {
+      return authStore.role === 'admin' ? true : { name: 'settings' }
+    }
     const familyStore = useFamilyStore()
     await familyStore.init(authStore.user)
 

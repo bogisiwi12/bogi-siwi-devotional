@@ -2,13 +2,15 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
 
 defineEmits(['toggle-sidebar'])
 const authStore = useAuthStore()
+const settings = useSettingsStore()
 const router = useRouter()
 
 const todayLabel = computed(() =>
-  new Date().toLocaleDateString(undefined, {
+  new Date().toLocaleDateString(settings.locale === 'id' ? 'id-ID' : 'en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -37,7 +39,7 @@ async function signOut() {
         <button
           class="lg:hidden text-ink/60 hover:text-ink hover:bg-stone/60 rounded-lg p-2 btn-press"
           @click="$emit('toggle-sidebar')"
-          aria-label="Open menu"
+          :aria-label="settings.t('header.openMenu')"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -59,8 +61,8 @@ async function signOut() {
           v-if="authStore.isAuthenticated"
           @click="signOut"
           class="grid place-items-center w-8 h-8 rounded-lg text-ink/40 hover:text-rose hover:bg-rose/10 transition-colors duration-300 btn-press"
-          title="Sign out"
-          aria-label="Sign out"
+          :title="settings.t('header.signOut')"
+          :aria-label="settings.t('header.signOut')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
